@@ -24,6 +24,7 @@ max_lines_visible = -1
 [node name="TestCube 1" type="TestCube" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
+transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6.24935 )
 layers = 1
 geometry/visible = true
 geometry/material_override = null
@@ -42,7 +43,7 @@ geometry/baked_light_tex_id = 0
 [node name="TestCube 2" type="TestCube" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
-transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6344, 0.0296183, 6.21975 )
+transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6344, 0.0296183, -0.0296035 )
 layers = 1
 geometry/visible = true
 geometry/material_override = null
@@ -61,7 +62,7 @@ geometry/baked_light_tex_id = 0
 [node name="TestCube 3" type="TestCube" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
-transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33823, 0, 6.27899 )
+transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, -6.33823, 0, 0.0296364 )
 layers = 1
 geometry/visible = true
 geometry/material_override = null
@@ -80,7 +81,7 @@ geometry/baked_light_tex_id = 0
 [node name="TestCube 4" type="TestCube" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
-transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.148087, 0, 12.7357 )
+transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0.148087, 0, 6.48635 )
 layers = 1
 geometry/visible = true
 geometry/material_override = null
@@ -99,7 +100,7 @@ geometry/baked_light_tex_id = 0
 [node name="Camera" type="Camera" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
-transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0773411, 6.22089 )
+transform/local = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0773411, -0.0284634 )
 projection = 0
 fov = 60.0
 near = 0.1
@@ -114,7 +115,7 @@ v_offset = 0.0
 [node name="DirectionalLight" type="DirectionalLight" parent="."]
 
 _import_transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 )
-transform/local = Transform( 0.761171, -0.486347, -0.429052, 0.648551, 0.5708, 0.503556, 0, -0.661554, 0.749898, -5.94528, 7.01771, 7.55472 )
+transform/local = Transform( 0.761171, -0.486347, -0.429052, 0.648551, 0.5708, 0.503556, 0, -0.661554, 0.749898, -5.94528, 7.01771, 1.30537 )
 layers = 1
 params/enabled = true
 params/editor_only = false
