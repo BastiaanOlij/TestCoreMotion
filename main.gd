@@ -11,20 +11,33 @@ func _process(delta):
 	var text = ""
 	
 	var acc = Input.get_accelerometer()
-	text += "Accelerometer: " + str(acc.x).pad_decimals(2) + "   " + str(acc.y).pad_decimals(2) + "   " + str(acc.z).pad_decimals(2) + "\n"
-
 	var grav = Input.get_gravity()
-	text += "Gravity: " + str(grav.x).pad_decimals(2) + "   " + str(grav.y).pad_decimals(2) + "   " + str(grav.z).pad_decimals(2) + "\n"
+	var useracc = acc - grav
+
+	text += "Accelerometer: " + str(acc.x).pad_decimals(2) + "   " + str(acc.y).pad_decimals(2) + "   " + str(acc.z).pad_decimals(2)
+	acc = acc.normalized()
+	text += " (" + str(acc.x).pad_decimals(2) + "   " + str(acc.y).pad_decimals(2) + "   " + str(acc.z).pad_decimals(2) +")"
+	text += "\n"
+
+	text += "Gravity: " + str(grav.x).pad_decimals(2) + "   " + str(grav.y).pad_decimals(2) + "   " + str(grav.z).pad_decimals(2)
+	grav = grav.normalized()
+	text += " (" + str(grav.x).pad_decimals(2) + "   " + str(grav.y).pad_decimals(2) + "   " + str(grav.z).pad_decimals(2) + ")"
+	text += "\n"
 
 	var gyro = Input.get_gyroscope()
 	text += "Gyroscope: " + str(gyro.x).pad_decimals(2) + "   " + str(gyro.y).pad_decimals(2) + "   " + str(gyro.z).pad_decimals(2) + "\n"
 
 	var magneto = Input.get_magnetometer()
-	text += "Magnometer: " + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2) + "\n"
+	text += "Magnometer: " + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2)
+	magneto = magneto.normalized()
+	text += " (" + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2) + ")"
+	text += "\n"
 
 	# get our user movement from our accelerometer
-	var useracc = acc - grav
-	text += "Useracc: " + str(useracc.x).pad_decimals(2) + "   " + str(useracc.y).pad_decimals(2) + "   " + str(useracc.z).pad_decimals(2) + "\n"
+	text += "Useracc: " + str(useracc.x).pad_decimals(2) + "   " + str(useracc.y).pad_decimals(2) + "   " + str(useracc.z).pad_decimals(2)
+	useracc = useracc.normalized()
+	text += " (" + str(useracc.x).pad_decimals(2) + "   " + str(useracc.y).pad_decimals(2) + "   " + str(useracc.z).pad_decimals(2) + ")"
+	text += "\n"
 
 	# get our current camera transform
 	var transform = Camera.get_transform()
@@ -43,7 +56,7 @@ func _process(delta):
 		# normalize and transform gravity into world space
 		# note that our positioning matrix will be inversed to create our view matrix, so the inverse of that is our positioning matrix
 		# hence we can do:
-		grav = transform.basis.xform(grav.normalized())
+		grav = transform.basis.xform(grav)
 		text += "Adj grav: " + str(grav.x).pad_decimals(2) + "   " + str(grav.y).pad_decimals(2) + "   " + str(grav.z).pad_decimals(2) + "\n"
 		
 		# get rotation between our gravity and down vector
@@ -63,7 +76,7 @@ func _process(delta):
 		var north = Vector3(0.0, 0.0, -1.0)
 		
 		# normalize and transform magneto into world space
-		magneto = transform.basis.xform(magneto.normalized())
+		magneto = transform.basis.xform(magneto)
 		text += "Adj magneto: " + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2) + "\n"
 		
 		# get rotation between our magneto and north vector
