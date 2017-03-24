@@ -11,10 +11,19 @@ func _process(delta):
 	var text = ""
 	
 	var acc = Input.get_accelerometer()
+	var magneto = Input.get_magnetometer()
+	var gyro = Input.get_gyroscope()
 	var grav = Input.get_gravity()
 	if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
 		# No gravity? just use accelerometer, maybe one day add some math here to do something better
 		grav = acc
+
+	if OS.get_name() == "Android":
+		# x and y axis are inverted on android
+		acc = Vector3(-acc.x, acc.y, -acc.z)
+		magneto = Vector3(-magneto.x, magneto.y, -magneto.z)
+		gyro = Vector3(-gyro.x, gyro.y, -gyro.z)
+		grav = Vector3(-grav.x, grav.y, -grav.z)
 
 	var useracc = acc - grav
 
@@ -28,10 +37,8 @@ func _process(delta):
 	text += " (" + str(grav.x).pad_decimals(2) + "   " + str(grav.y).pad_decimals(2) + "   " + str(grav.z).pad_decimals(2) + ")"
 	text += "\n"
 
-	var gyro = Input.get_gyroscope()
 	text += "Gyroscope: " + str(gyro.x).pad_decimals(2) + "   " + str(gyro.y).pad_decimals(2) + "   " + str(gyro.z).pad_decimals(2) + "\n"
 
-	var magneto = Input.get_magnetometer()
 	text += "Magnometer: " + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2)
 	magneto = magneto.normalized()
 	text += " (" + str(magneto.x).pad_decimals(2) + "   " + str(magneto.y).pad_decimals(2) + "   " + str(magneto.z).pad_decimals(2) + ")"
