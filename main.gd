@@ -2,6 +2,17 @@ extends Spatial
 
 var Camera = null
 var movespeed = 10.0
+
+var frame_counter = 0
+var next_mag_min = Vector3( 10000, 10000, 10000 )
+var next_mag_max = Vector3 ( -10000, -10000, -10000 )
+var current_mag_min = Vector3( 0, 0, 0 )
+var current_mag_max = Vector3( 0, 0, 0 )
+var last_acc = Vector3()
+var acc_lpf = 0.2
+var last_magneto = Vector3()
+var magneto_lpf = 0.3
+
 	
 func _ready():
 	Camera = get_node("Camera")
@@ -11,12 +22,20 @@ func _process(delta):
 	var text = ""
 	
 	var acc = Input.get_accelerometer()
+	acc = Maths.scrub_input_v3_d3( acc, last_acc, acc_lpf )
+	last_acc = acc
+	get_node( "Debug1" ).set_text( "acc: " + str( acc ) )
 	var magneto = Input.get_magnetometer()
+	magneto = Maths.scrub_input_v3_d2( magneto, last_magneto, magneto_lpf )
+	magneto = scale_mag_v3( magneto )
+	get_node( "Debug2" ).set_text( "mag: " + str( magneto ) )
 	var gyro = Input.get_gyroscope()
-	var grav = Input.get_gravity()
-	if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
+	get_node( "Debug3" ).set_text( "gyro: " + str( gyro ) )
+	#var grav = Input.get_gravity()
+	#get_node( "Debug4" ).set_text( "grav: " + str( grav ) )
+	#if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
 		# No gravity? just use accelerometer, maybe one day add some math here to do something better
-		grav = acc
+	var grav = acc
 
 	if OS.get_name() == "Android":
 		# x and y axis are inverted on android
@@ -112,7 +131,44 @@ func _process(delta):
 	# now that we have our orientation correct, let's use our accelerometer to move our camera, this is not accurate enough... alas...
 	# useracc = transform.basis.xform(useracc)
 	# transform.origin += useracc * delta * movespeed
+	if frame_counter > 20:
+		current_mag_min = next_mag_min
+		current_mag_max = next_mag_max
+		frame_counter = 0
+	else:
+		frame_counter += 1
 
 	Camera.set_transform(transform)
 	
 	get_node("Text").set_text(text)
+	
+func scale_mag_v3( mag_raw ):
+	if mag_raw.x > next_mag_max.x:
+		next_mag_max.x = mag_raw.x
+	if mag_raw.y > next_mag_max.y:
+		next_mag_max.y = mag_raw.y
+	if mag_raw.z > next_mag_max.z:
+		next_mag_max.z = mag_raw.z
+	
+	if mag_raw.x < next_mag_min.x:
+		next_mag_min.x = mag_raw.x
+	if mag_raw.y < next_mag_min.y:
+		next_mag_min.y = mag_raw.y
+	if mag_raw.z < next_mag_min.z:
+		next_mag_min.z = mag_raw.z
+	
+	var mag_scaled = mag_raw
+	
+	if !( current_mag_max.x - current_mag_min.x ):
+		mag_raw.x -= ( current_mag_min.x + current_mag_max.x ) / 2
+		mag_scaled.x = ( mag_raw.x - current_mag_min.x ) / ( ( current_mag_max.x - current_mag_min.x ) * 2 - 1 )
+	
+	if !( current_mag_max.y - current_mag_min.y ):
+		mag_raw.y -= ( current_mag_min.y + current_mag_max.y ) / 2
+		mag_scaled.y = ( mag_raw.y - current_mag_min.y ) / ( ( current_mag_max.y - current_mag_min.y ) * 2 - 1 )
+	
+	if !( current_mag_max.z - current_mag_min.z ):
+		mag_raw.z -= ( current_mag_min.z + current_mag_max.z ) / 2
+		mag_scaled.z = ( mag_raw.z - current_mag_min.z ) / ( ( current_mag_max.z - current_mag_min.z ) * 2 - 1 )
+	
+	return mag_scaled
