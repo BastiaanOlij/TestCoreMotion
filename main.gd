@@ -12,6 +12,8 @@ var last_acc = Vector3()
 var acc_lpf = 0.2
 var last_magneto = Vector3()
 var magneto_lpf = 0.3
+var acc_mag_slerp = 0.05
+var gyro_threshold = 0.1
 
 	
 func _ready():
@@ -24,13 +26,14 @@ func _process(delta):
 	var acc = Input.get_accelerometer()
 	acc = Maths.scrub_input_v3_d3( acc, last_acc, acc_lpf )
 	last_acc = acc
-	get_node( "Debug1" ).set_text( "acc: " + str( acc ) )
+	
 	var magneto = Input.get_magnetometer()
 	magneto = Maths.scrub_input_v3_d2( magneto, last_magneto, magneto_lpf )
 	magneto = scale_mag_v3( magneto )
-	get_node( "Debug2" ).set_text( "mag: " + str( magneto ) )
+	
 	var gyro = Input.get_gyroscope()
-	get_node( "Debug3" ).set_text( "gyro: " + str( gyro ) )
+	
+	# disabled Input.get_gravity() as it doesn't seem to be implemented in my godot -masonoyers
 	#var grav = Input.get_gravity()
 	#get_node( "Debug4" ).set_text( "grav: " + str( grav ) )
 	#if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
@@ -77,13 +80,14 @@ func _process(delta):
 	rotate = rotate.rotated(transform.basis.x, -gyro.x * delta)
 	rotate = rotate.rotated(transform.basis.y, -gyro.y * delta)
 	rotate = rotate.rotated(transform.basis.z, -gyro.z * delta)
-	transform.basis = rotate * transform.basis
+	var gyro_m3 = rotate * transform.basis
+	var acc_mag_m3 = gyro_m3
 	
 	# should use our down vector and compare it to our gravity to compensate for drift.
 	if ((grav.x != 0.0) || (grav.y != 0.0) || (grav.z != 0.0)):
 		var down = Vector3(0.0, -1.0, 0.0)
 		
-		# normalize and transform gravity into world space
+		# norma8lize and transform gravity into world space
 		# note that our positioning matrix will be inversed to create our view matrix, so the inverse of that is our positioning matrix
 		# hence we can do:
 		var grav_adj = transform.basis.xform(grav)
@@ -99,7 +103,7 @@ func _process(delta):
 			# adjust for drift
 			var rotate = Matrix3()
 			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
-			transform.basis = rotate * transform.basis
+			acc_mag_m3 = rotate * transform.basis
 
 	# And do something similar with our magnetometer
 	if ((magneto.x != 0.0) || (magneto.y != 0.0) || (magneto.z != 0.0)):
@@ -113,7 +117,7 @@ func _process(delta):
 		var north = Vector3(0.0, 0.0, 1.0)
 		
 		# normalize and transform magneto into world space
-		var magneto_adj = transform.basis.xform(magneto)
+		var magneto_adj = acc_mag_m3.xform(magneto)
 		text += "Adj magneto: " + str(magneto_adj.x).pad_decimals(2) + "   " + str(magneto_adj.y).pad_decimals(2) + "   " + str(magneto_adj.z).pad_decimals(2) + "\n"
 		
 		# get rotation between our magneto and north vector
@@ -126,11 +130,28 @@ func _process(delta):
 			# adjust for drift
 			var rotate = Matrix3()
 			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
-			transform.basis = rotate * transform.basis
+			acc_mag_m3 = rotate * transform.basis
 
 	# now that we have our orientation correct, let's use our accelerometer to move our camera, this is not accurate enough... alas...
 	# useracc = transform.basis.xform(useracc)
 	# transform.origin += useracc * delta * movespeed
+	
+	# need to rotate the acc_mag_m3 to align with the heading of the gyro_m3 -masonjoyers
+	var heading_offset = gyro_m3.z.dot( acc_mag_m3.z )
+	heading_offset = acos( heading_offset )
+	heading_offset = Maths.wrap_angle( heading_offset )
+	acc_mag_m3 = acc_mag_m3.rotated( acc_mag_m3.y, ( PI + PI -heading_offset ) )
+	
+	# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
+	# the easiest way to do this is convert to Quat -masonjoyers
+	var gyro_quat = Quat( gyro_m3 )
+	var acc_mag_quat = Quat( acc_mag_m3 )
+	if gyro.length() > gyro_threshold:
+		gyro_quat = gyro_quat.slerp( acc_mag_quat, acc_mag_slerp )
+	
+	# now set the basis of the transform to they gyro_quat
+	transform.basis = Matrix3( gyro_quat )
+	
 	if frame_counter > 20:
 		current_mag_min = next_mag_min
 		current_mag_max = next_mag_max
