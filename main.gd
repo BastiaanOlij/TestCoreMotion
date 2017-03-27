@@ -142,23 +142,24 @@ func _process(delta):
 	heading_offset = Maths.wrap_angle( heading_offset )
 	acc_mag_m3 = acc_mag_m3.rotated( acc_mag_m3.y, ( PI + PI -heading_offset ) )
 	
-	# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
-	# the easiest way to do this is convert to Quat -masonjoyers
-	var gyro_quat = Quat( gyro_m3 )
-	var acc_mag_quat = Quat( acc_mag_m3 )
-	if gyro.length() > gyro_threshold:
-		gyro_quat = gyro_quat.slerp( acc_mag_quat, acc_mag_slerp )
-	
-	# now set the basis of the transform to they gyro_quat
-	transform.basis = Matrix3( gyro_quat )
-	
 	if frame_counter > 20:
+			# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
+	# the easiest way to do this is convert to Quat -masonjoyers
+		
+		if gyro.length() > gyro_threshold:
+			var gyro_quat = Quat( gyro_m3 )
+			var acc_mag_quat = Quat( acc_mag_m3 )
+			gyro_quat = gyro_quat.slerp( acc_mag_quat, acc_mag_slerp )
+			gyro_m3 = Matrix3( gyro_quat )
+		
 		current_mag_min = next_mag_min
 		current_mag_max = next_mag_max
 		frame_counter = 0
 	else:
 		frame_counter += 1
-
+	
+	# now set the basis of the transform to they gyro_quat
+	transform.basis = gyro_m3
 	Camera.set_transform(transform)
 	
 	get_node("Text").set_text(text)
