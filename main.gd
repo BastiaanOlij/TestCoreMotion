@@ -2,6 +2,19 @@ extends Spatial
 
 var Camera = null
 var movespeed = 10.0
+
+var frame_counter = 0
+var next_mag_min = Vector3( 10000, 10000, 10000 )
+var next_mag_max = Vector3 ( -10000, -10000, -10000 )
+var current_mag_min = Vector3( 0, 0, 0 )
+var current_mag_max = Vector3( 0, 0, 0 )
+var last_acc = Vector3()
+var acc_lpf = 0.2
+var last_magneto = Vector3()
+var magneto_lpf = 0.3
+var acc_mag_slerp = 0.05
+var gyro_threshold = 0.1
+
 	
 func _ready():
 	Camera = get_node("Camera")
@@ -11,12 +24,21 @@ func _process(delta):
 	var text = ""
 	
 	var acc = Input.get_accelerometer()
+	acc = Maths.scrub_input_v3_d3( acc, last_acc, acc_lpf )
+	last_acc = acc
+	
 	var magneto = Input.get_magnetometer()
+	magneto = Maths.scrub_input_v3_d2( magneto, last_magneto, magneto_lpf )
+	magneto = scale_mag_v3( magneto )
+	
 	var gyro = Input.get_gyroscope()
-	var grav = Input.get_gravity()
-	if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
+	
+	# disabled Input.get_gravity() as it doesn't seem to be implemented in my godot -masonoyers
+	#var grav = Input.get_gravity()
+	#get_node( "Debug4" ).set_text( "grav: " + str( grav ) )
+	#if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
 		# No gravity? just use accelerometer, maybe one day add some math here to do something better
-		grav = acc
+	var grav = acc
 
 	if OS.get_name() == "Android":
 		# x and y axis are inverted on android
@@ -58,13 +80,14 @@ func _process(delta):
 	rotate = rotate.rotated(transform.basis.x, -gyro.x * delta)
 	rotate = rotate.rotated(transform.basis.y, -gyro.y * delta)
 	rotate = rotate.rotated(transform.basis.z, -gyro.z * delta)
-	transform.basis = rotate * transform.basis
+	var gyro_m3 = rotate * transform.basis
+	var acc_mag_m3 = gyro_m3
 	
 	# should use our down vector and compare it to our gravity to compensate for drift.
 	if ((grav.x != 0.0) || (grav.y != 0.0) || (grav.z != 0.0)):
 		var down = Vector3(0.0, -1.0, 0.0)
 		
-		# normalize and transform gravity into world space
+		# norma8lize and transform gravity into world space
 		# note that our positioning matrix will be inversed to create our view matrix, so the inverse of that is our positioning matrix
 		# hence we can do:
 		var grav_adj = transform.basis.xform(grav)
@@ -80,7 +103,7 @@ func _process(delta):
 			# adjust for drift
 			var rotate = Matrix3()
 			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
-			transform.basis = rotate * transform.basis
+			acc_mag_m3 = rotate * transform.basis
 
 	# And do something similar with our magnetometer
 	if ((magneto.x != 0.0) || (magneto.y != 0.0) || (magneto.z != 0.0)):
@@ -94,7 +117,7 @@ func _process(delta):
 		var north = Vector3(0.0, 0.0, 1.0)
 		
 		# normalize and transform magneto into world space
-		var magneto_adj = transform.basis.xform(magneto)
+		var magneto_adj = acc_mag_m3.xform(magneto)
 		text += "Adj magneto: " + str(magneto_adj.x).pad_decimals(2) + "   " + str(magneto_adj.y).pad_decimals(2) + "   " + str(magneto_adj.z).pad_decimals(2) + "\n"
 		
 		# get rotation between our magneto and north vector
@@ -107,12 +130,67 @@ func _process(delta):
 			# adjust for drift
 			var rotate = Matrix3()
 			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
-			transform.basis = rotate * transform.basis
+			acc_mag_m3 = rotate * transform.basis
 
 	# now that we have our orientation correct, let's use our accelerometer to move our camera, this is not accurate enough... alas...
 	# useracc = transform.basis.xform(useracc)
 	# transform.origin += useracc * delta * movespeed
-
+	
+	# need to rotate the acc_mag_m3 to align with the heading of the gyro_m3 -masonjoyers
+	var heading_offset = gyro_m3.z.dot( acc_mag_m3.z )
+	heading_offset = acos( heading_offset )
+	heading_offset = Maths.wrap_angle( heading_offset )
+	acc_mag_m3 = acc_mag_m3.rotated( acc_mag_m3.y, ( PI + PI -heading_offset ) )
+	
+	if frame_counter > 20:
+			# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
+	# the easiest way to do this is convert to Quat -masonjoyers
+		
+		if gyro.length() > gyro_threshold:
+			var gyro_quat = Quat( gyro_m3 )
+			var acc_mag_quat = Quat( acc_mag_m3 )
+			gyro_quat = gyro_quat.slerp( acc_mag_quat, acc_mag_slerp )
+			gyro_m3 = Matrix3( gyro_quat )
+		
+		current_mag_min = next_mag_min
+		current_mag_max = next_mag_max
+		frame_counter = 0
+	else:
+		frame_counter += 1
+	
+	# now set the basis of the transform to they gyro_quat
+	transform.basis = gyro_m3
 	Camera.set_transform(transform)
 	
 	get_node("Text").set_text(text)
+	
+func scale_mag_v3( mag_raw ):
+	if mag_raw.x > next_mag_max.x:
+		next_mag_max.x = mag_raw.x
+	if mag_raw.y > next_mag_max.y:
+		next_mag_max.y = mag_raw.y
+	if mag_raw.z > next_mag_max.z:
+		next_mag_max.z = mag_raw.z
+	
+	if mag_raw.x < next_mag_min.x:
+		next_mag_min.x = mag_raw.x
+	if mag_raw.y < next_mag_min.y:
+		next_mag_min.y = mag_raw.y
+	if mag_raw.z < next_mag_min.z:
+		next_mag_min.z = mag_raw.z
+	
+	var mag_scaled = mag_raw
+	
+	if !( current_mag_max.x - current_mag_min.x ):
+		mag_raw.x -= ( current_mag_min.x + current_mag_max.x ) / 2
+		mag_scaled.x = ( mag_raw.x - current_mag_min.x ) / ( ( current_mag_max.x - current_mag_min.x ) * 2 - 1 )
+	
+	if !( current_mag_max.y - current_mag_min.y ):
+		mag_raw.y -= ( current_mag_min.y + current_mag_max.y ) / 2
+		mag_scaled.y = ( mag_raw.y - current_mag_min.y ) / ( ( current_mag_max.y - current_mag_min.y ) * 2 - 1 )
+	
+	if !( current_mag_max.z - current_mag_min.z ):
+		mag_raw.z -= ( current_mag_min.z + current_mag_max.z ) / 2
+		mag_scaled.z = ( mag_raw.z - current_mag_min.z ) / ( ( current_mag_max.z - current_mag_min.z ) * 2 - 1 )
+	
+	return mag_scaled
