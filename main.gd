@@ -14,7 +14,6 @@ var last_magneto = Vector3()
 var magneto_lpf = 0.3
 var acc_mag_slerp = 0.05
 var gyro_threshold = 0.1
-
 	
 func _ready():
 	Camera = get_node("Camera")
@@ -33,12 +32,11 @@ func _process(delta):
 	
 	var gyro = Input.get_gyroscope()
 	
-	# disabled Input.get_gravity() as it doesn't seem to be implemented in my godot -masonoyers
-	#var grav = Input.get_gravity()
-	#get_node( "Debug4" ).set_text( "grav: " + str( grav ) )
-	#if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
+	# Gravity is supported for both Android and iOS since Godot 2.1.3, if your device does not support it, it will be 0, and we'll copy the accelerometer
+	var grav = Input.get_gravity()
+	if ((grav.x == 0.0) && (grav.y == 0.0) && (grav.z == 0.0)):
 		# No gravity? just use accelerometer, maybe one day add some math here to do something better
-	var grav = acc
+		grav = acc
 
 	if OS.get_name() == "Android":
 		# x and y axis are inverted on android
@@ -102,7 +100,7 @@ func _process(delta):
 
 			# adjust for drift
 			var rotate = Matrix3()
-			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
+			rotate = rotate.rotated(axis, -acos(dot))
 			acc_mag_m3 = rotate * transform.basis
 
 	# And do something similar with our magnetometer
@@ -129,12 +127,8 @@ func _process(delta):
 
 			# adjust for drift
 			var rotate = Matrix3()
-			rotate = rotate.rotated(axis, -acos(dot) * 0.2) # *0.2 to dampen it
+			rotate = rotate.rotated(axis, -acos(dot))
 			acc_mag_m3 = rotate * transform.basis
-
-	# now that we have our orientation correct, let's use our accelerometer to move our camera, this is not accurate enough... alas...
-	# useracc = transform.basis.xform(useracc)
-	# transform.origin += useracc * delta * movespeed
 	
 	# need to rotate the acc_mag_m3 to align with the heading of the gyro_m3 -masonjoyers
 	var heading_offset = gyro_m3.z.dot( acc_mag_m3.z )
@@ -143,8 +137,8 @@ func _process(delta):
 	acc_mag_m3 = acc_mag_m3.rotated( acc_mag_m3.y, ( PI + PI -heading_offset ) )
 	
 	if frame_counter > 20:
-			# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
-	# the easiest way to do this is convert to Quat -masonjoyers
+		# slerp the acc_mag_m3 against the gyro_m3 to correct drift 
+		# the easiest way to do this is convert to Quat -masonjoyers
 		
 		if gyro.length() > gyro_threshold:
 			var gyro_quat = Quat( gyro_m3 )
