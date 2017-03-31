@@ -31,6 +31,7 @@ func _process(delta):
 	
 	var magneto = Input.get_magnetometer()
 	magneto = Maths.scrub_input_v3_d2( magneto, last_magneto, magneto_lpf )
+	last_magneto = magneto;
 	magneto = scale_mag_v3( magneto )
 	
 	var gyro = Input.get_gyroscope()
